@@ -11,10 +11,11 @@ The easiest way to use Bluetooth (BLE )in ios,even bady can use. 简单易用的
 - 4:通过channel切换区分委托调用，并方便切换
 - 5:便利的工具方法
 - 6:完善的文档，且项目处于活跃状态，不断的更新中
-- 7:github上star最多的纯Bluetooch类库（非PhoneGap和SensorTag项目）
+- 7:github上star最多的纯Bluetooch类库
 - 8:包含多种类型的demo和ios蓝牙开发教程
+- 9:同时支持蓝牙设备中心模式和外设模式（central model and peripheral model）
 
-当前版本 v0.4.0
+当前版本 0.5.0
 
 详细文档请参考wiki The full documentation of the project is available on its wiki.
 # [english readme link,please click it!](https://github.com/coolnameismy/BabyBluetooth/blob/master/README_en.md)
@@ -31,6 +32,10 @@ The easiest way to use Bluetooth (BLE )in ios,even bady can use. 简单易用的
 * [期待](#期待)
 
 # QuickExample
+
+## 中心模式 central model 
+>   app作为中心，连接其他BLE4.0外设
+
 ```objc
 
 //导入.h文件和系统蓝牙库的头文件
@@ -66,9 +71,78 @@ BabyBluetooth *baby;
         }
         return NO;
     }];
+
+    //.......
 }
-  
+
 ```
+
+更多蓝牙操作方法和委托请参考[wiki](https://github.com/coolnameismy/BabyBluetooth/wiki)
+
+中心模式使用示例请参考:[BabyBluetoothAppDemo](https://github.com/coolnameismy//BabyBluetoothExamples/BabyBluetoothAppDemo)
+
+## 外设模式 peripheral model 
+>   app模拟一个，BLE4.0外设，可以被其他设备连接和使用
+
+
+模拟一个有2个service和6个characteristic的外设
+
+````objc
+//导入.h文件和系统蓝牙库的头文件
+#import "BabyBluetooth.h"
+//定义变量
+BabyBluetooth *baby;
+
+-(void)viewDidLoad {
+    [super viewDidLoad];
+
+    //配置第一个服务s1
+    CBMutableService *s1 = makeCBService(@"FFF0");
+    //配置s1的3个characteristic
+    makeCharacteristicToService(s1, @"FFF1", @"r", @"hello1");//读
+    makeCharacteristicToService(s1, @"FFF2", @"w", @"hello2");//写
+    makeCharacteristicToService(s1, genUUID(), @"rw", @"hello3");//可读写,uuid自动生成
+    makeCharacteristicToService(s1, @"FFF4", nil, @"hello4");//默认读写字段
+    makeCharacteristicToService(s1, @"FFF5", @"n", @"hello5");//notify字段
+    //配置第一个服务s2
+    CBMutableService *s2 = makeCBService(@"FFE0");
+    makeStaticCharacteristicToService(s2, genUUID(), @"hello6", [@"a" dataUsingEncoding:NSUTF8StringEncoding]);//一个含初值的字段，该字段权限只能是只读
+   
+    //实例化baby
+    baby = [BabyBluetooth shareBabyBluetooth];
+    //配置委托
+    [self babyDelegate];
+    //启动外设
+    baby.bePeripheral().addServices(@[s1,s2]).startAdvertising();
+}
+
+//设置蓝牙外设模式的委托
+-(void)babyDelegate{
+
+     //设置添加service委托 | set didAddService block
+    [baby peripheralModelBlockOnPeripheralManagerDidUpdateState:^(CBPeripheralManager *peripheral) {
+        NSLog(@"PeripheralManager trun status code: %ld",(long)peripheral.state);
+    }];
+    
+    //设置添加service委托 | set didAddService block
+    [baby peripheralModelBlockOnDidStartAdvertising:^(CBPeripheralManager *peripheral, NSError *error) {
+        NSLog(@"didStartAdvertising !!!");
+    }];
+    
+    //设置添加service委托 | set didAddService block
+    [baby peripheralModelBlockOnDidAddService:^(CBPeripheralManager *peripheral, CBService *service, NSError *error) {
+        NSLog(@"Did Add Service uuid: %@ ",service.UUID);
+    }];
+
+    //.....
+}
+
+````
+  
+更多蓝牙外设模式委托请参考[wiki](https://github.com/coolnameismy/BabyBluetooth/wiki)
+
+中心模式使用示例请参考:[BluetoothStubOnIOS](https://github.com/coolnameismy//BabyBluetoothExamples/BluetoothStubOnIOS)
+
 # 如何安装
 
 ##1 手动安装
@@ -83,7 +157,7 @@ step2:导入.h文件
 ##2 cocoapods
 step1:add the following line to your Podfile:
 ````
-pod 'BabyBluetooth','~> 0.4.0'
+pod 'BabyBluetooth','~> 0.5.0'
 ````
 
 step2:导入.h文件
@@ -104,12 +178,18 @@ step2:导入.h文件
 - 4：写0x01到characteristic
 - 5：订阅/取消订阅 characteristic的notify
 
+**BabyBluetoothExamples/BluetoothStubOnIOS** : 一个iOS程序，启动后会用手机模拟一个外设，提供2个服务和若干characteristic。
+该程序作为Babybluetooth 外设模式使用的示例程序
+
 **BabyBluetoothExamples/BabyBluetoothOSDemo** :一个mac os程序，因为os和ios的蓝牙底层方法都一样，所以BabyBluetooth可以ios/os通用。但是os程序有个好处就是直接可以在mac上跑蓝牙设备，不像ios，必须要真机才能跑蓝牙设备。所以不能真机调试时可以使用os尝试蓝牙库的使用。
 
 功能：
 - 1：扫描周围设备、连接设备、显示characteristic，读取characteristic的value，和descriptors以及Descriptors对应的value的委托设置，并使用nslog打印信息。
 
 **BabyBluetoothExamples/BluetoothStubOnOSX** :一个mac os程序，该程序可以作为蓝牙外设使用，解决学习蓝牙时没有外设可用的囧境，并且可以作为peripheral model模式的学习示例。改程序用swift编码。
+
+
+
 
 功能：
 - 1：作为蓝牙外设使用，可以被发现，连接，读写，订阅
@@ -124,9 +204,7 @@ step2:导入.h文件
 
 
 # 后期更新
-- 增加babytooth对NSNotification事件的支持
-- 完善代码的中英文注释
-- 增加对外设模式使用的支持（app作为蓝牙设备提供服务）
+
 - 优化babyBluetooch的子类类名
 - 增加对Carthage Install的支持
 - swift版本开发
@@ -142,11 +220,12 @@ step2:导入.h文件
 - 待定...
 - [官方CoreBuetooth支持页](https://developer.apple.com/bluetooth)
 
-qq交流群1：426603940(满)
 qq交流群2：168756967
+qq交流群1：426603940(满)
 
 # 期待
-  - 蓝牙库写起来很辛苦，不要忘记点击右上角小星星star支持一下~
+
+  - 蓝牙库写起来很辛苦，不要忘记点击右上角小星星star和[follow](https://github.com/coolnameismy)支持一下~
   - 如果在使用过程中遇到BUG，或发现功能不够用，希望你能Issues我，谢谢
   - 期待大家也能一起为BabyBluetooth输出代码，这里我只是给BabyBluetooth开了个头，他可以增加和优化的地方还是非常多。也期待和大家在Pull Requests一起学习，交流，成长。
 
